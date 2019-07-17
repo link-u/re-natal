@@ -720,9 +720,9 @@ buildRequireByPlatformMap = () ->
   onlyUserCljs = (item) -> 
     localpath = item.path.replace workdir, ''
     extension = fpath.extname(localpath)
-    (extension == '.cljc' or extension == '.cljs') 
-    and localpath.indexOf('/target/') < 0 
-    and localpath.indexOf('/re-natal/') < 0 
+    (extension == '.cljc' or extension == '.cljs') and 
+    localpath.indexOf('/target/') < 0 and 
+    localpath.indexOf('/re-natal/') < 0 
   
   files = klawSync workdir,
     nodir: true
