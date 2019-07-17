@@ -34,8 +34,8 @@ ipAddressRx     = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/i
 debugHostRx     = /host]\s+\?:\s+@".*";/g
 namespaceRx     = /\(ns\s+([A-Za-z0-9.-]+)/g
 jsRequireRx     = /\n[^;^\n]*js\/require "(.+?)"/g
-rnVersion       = '0.57.7'
-rnWinVersion    = '0.57.0-rc.0'
+rnVersion       = '0.59.5'
+rnWinVersion    = '0.57.1'
 rnPackagerPort  = 8081
 process.title   = 're-natal'
 buildProfiles     =
@@ -374,26 +374,6 @@ updateGitIgnore = (platforms) ->
 
   fs.appendFileSync(".gitignore", "\n# Figwheel\n#\nfigwheel_server.log")
 
-findPackagerFileToPatch = () ->
-  files = [
-    "node_modules/metro/src/Server/index.js",
-    "node_modules/metro-bundler/src/Server/index.js",
-    "node_modules/metro-bundler/build/Server/index.js",
-    "node_modules/react-native/packager/src/Server/index.js"]
-  fileToPatch = files[0];
-  for f in files
-    if fs.existsSync(f)
-      fileToPatch = f
-  fileToPatch
-
-patchReactNativePackager = () ->
-  installDeps()
-  fileToPatch = findPackagerFileToPatch()
-  log "Patching file #{fileToPatch} to serve *.map files."
-  edit fileToPatch,
-    [[/match\(\/\\.map\$\/\)/m, "match(/index\\..*\\.map$/)"]]
-  log "If the React Native packager is running, please restart it."
-
 shimCljsNamespace = (ns) ->
   filePath = "src/" + ns.replace(/\./g, "/") + ".cljs"
   filePath = filePath.replace(/-/g, "_")
@@ -515,7 +495,7 @@ generateWpfProject = (projName) ->
   edit appReactPagePath, [[/public.*JavaScriptMainModuleName.*;/g, "public override string JavaScriptMainModuleName => \"index.wpf\";"]]
 
 updateBabelRc = () ->
-  babelRcJson = readConfig('.babelrc')
+  babelRcJson = readConfig('.babelrc', false)
   babelRcJson.ignore = [
     "./index.ios.js",
     "./index.android.js"
@@ -611,7 +591,7 @@ init = (interfaceName, projName, platforms) ->
     log "cd #{projNameHyph}", 'inverse'
     log ''
     log 'Run iOS app:' , 'yellow'
-    log 'react-native run-ios --configuration Debug > /dev/null', 'inverse'
+    log 'react-native run-ios > /dev/null', 'inverse'
     log ''
     log 'To use figwheel type:' , 'yellow'
     log 're-natal use-figwheel', 'inverse'
@@ -736,15 +716,18 @@ extractRequiresFromSourceFile = (file) ->
   requires: requires
 
 buildRequireByPlatformMap = () ->
+  workdir = process.cwd()
   onlyUserCljs = (item) -> 
-    extension = fpath.extname(item.path)
-    (extension == '.cljc' or extension == '.cljs') and
-    item.path.indexOf('/target/') < 0 and # ignore target dir
-    item.path.indexOf('/re-natal/') < 0 # ignore re-natal internal cljs files (can happen if re-natal is installed as a devDependency)
-  files = klawSync process.cwd(),
+    localpath = item.path.replace workdir, ''
+    extension = fpath.extname(localpath)
+    (extension == '.cljc' or extension == '.cljs') 
+    and localpath.indexOf('/target/') < 0 
+    and localpath.indexOf('/re-natal/') < 0 
+  
+  files = klawSync workdir,
     nodir: true
     traverseAll: true
-    filter: onlyUserCljs
+    filter: onlyUserCljs  
   filenames = files.map((o) -> o.path)
   extractedRequires = filenames.map(extractRequiresFromSourceFile)
 
@@ -1010,11 +993,6 @@ cli.command 'require-all'
   .description 'parses all cljs files in this project, extracts all (js/require) calls and adds required modules to .re-natal file'
   .action () ->
     inferComponents()
-
-cli.command 'enable-source-maps'
-  .description 'patches RN packager to server *.map files from filesystem, so that chrome can download them.'
-  .action () ->
-    patchReactNativePackager()
 
 cli.command 'set-figwheel-port <port>'
   .description 'configures the port of figwheel server (port 3449 is default)'
