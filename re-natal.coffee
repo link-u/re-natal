@@ -743,7 +743,7 @@ buildRequireByPlatformMap = () ->
 platformModulesAndImages = (config, platform) ->
   if config.autoRequire? and config.autoRequire
     requires = buildRequireByPlatformMap()
-    requires.common.concat(requires[platform])
+    requires.common.concat(requires[platform] || [])
   else
     platforms = Object.keys config.platforms
     images = scanImages(config.imageDirs, platforms).map (fname) -> './' + fname;
